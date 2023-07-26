@@ -38,11 +38,14 @@ async def build_response(data):
 async def get_currency_data():
         exchange_data_list = []
         async with aiohttp.ClientSession() as session:
-            for date in list_date:
-                async with session.get(f'https://api.privatbank.ua/p24api/exchange_rates?json&date={date}') as response:
-                    result = await response.json()
-                    result = await build_response(result)
-                    exchange_data_list.append(result)
+            try:
+                for date in list_date:
+                    async with session.get(f'https://api.privatbank.ua/p24api/exchange_rates?json&date={date}') as response:
+                        result = await response.json()
+                        result = await build_response(result)
+                        exchange_data_list.append(result)
+            except aiohttp.ClientConnectorError as err:
+                print(f'Connection error: https://api.privatbank.ua/p24api/exchange_rates?json&date={date}', str(err))
         return exchange_data_list
             
 
