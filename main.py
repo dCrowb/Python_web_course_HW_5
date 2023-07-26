@@ -19,33 +19,61 @@ def date_list(days: int):
     return list_date
 
 
-async def get_currence_data(date: int):
-    async with aiohttp.ClientSession() as session:
-        async with session.get(f'https://api.privatbank.ua/p24api/exchange_rates?date={date}') as response:
-            result = await response.json()
-            return result
+async def build_response(data):
+    exchange_rate = data.get('exchangeRate')
+    tmp_dict = {}
+    response = {}
+    for rate in exchange_rate:
+        if rate.get('currency') in currency_list:
+            tmp_dict.update({rate.get('currency'):{
+                'sale': rate.get('saleRate'),
+                'purchase': rate.get('purchaseRate')
+            }
+                             })
+        response.update({data.get('date'): tmp_dict})    
+    return response
+
+
+
+async def get_currency_data():
+        exchange_data_list = []
+        async with aiohttp.ClientSession() as session:
+            for date in list_date:
+                async with session.get(f'https://api.privatbank.ua/p24api/exchange_rates?json&date={date}') as response:
+                    result = await response.json()
+                    result = await build_response(result)
+                    exchange_data_list.append(result)
+        return exchange_data_list
+            
+
+async def get_exchange():
+    result = await get_currency_data()
+    print(result)
+    return result
 
 def parser(command: str):
     parser = argparse.ArgumentParser(prog='ExchangeRate', description='Exchange rate')
     parser.add_argument('-d', dest='days', type=int, help='number days')
-    parser.add_argument('-c', help='currence')
+    parser.add_argument('-c', dest='currency', help='currency')
     args = parser.parse_args()
     return args
 
-
-def controller(command: list):
+  
+if __name__ == '__main__':
+    root_command, *command = argv
     full_command = ''
+
     for el in command:
         full_command = full_command.join(el + ' ')
     arguments = parser(full_command)
+
+    if not arguments.currency:
+        currency_list = ['EUR', 'USD']
+    else:
+        currency_list = arguments.currency
+
+    list_date = date_list(arguments.days)
     if arguments.days in range(11):
-        list_date = date_list(arguments.days)
-        for date in list_date:
-            response = asyncio.run(get_currence_data(date))
-            print(response.get('exchangeRate'))
-
-    
-
-if __name__ == '__main__':
-    root_command, *command = argv
-    controller(command)
+        asyncio.run(get_exchange())
+    else:
+        print('-d must be from 1 to 10')
